@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>robot_arm_bringup</name>
+  <version>1.0.0</version>
+  <description>Complete system bringup launch files and RViz2 configuration for the 4-DOF interactive robotic arm.</description>
+  <maintainer email="engineer@example.com">Robotics Engineer</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>robot_arm_control</exec_depend>
+  <exec_depend>robot_arm_description</exec_depend>
+  <exec_depend>robot_arm_gazebo</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

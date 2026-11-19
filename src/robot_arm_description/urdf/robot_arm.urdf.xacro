@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot name="robotic_arm_4dof" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="controllers_file" default="$(find robot_arm_gazebo)/config/controllers.yaml"/>
+
+  <xacro:include filename="$(find robot_arm_description)/urdf/robot_arm_core.xacro"/>
+  <xacro:include filename="$(find robot_arm_description)/urdf/robot_arm.gazebo.xacro"/>
+  <xacro:include filename="$(find robot_arm_description)/urdf/robot_arm.ros2_control.xacro"/>
+
+  <xacro:robot_arm_gazebo controllers_file="$(arg controllers_file)"/>
+  <xacro:robot_arm_ros2_control name="RoboticArm4DOFSystem"/>
+
+</robot>

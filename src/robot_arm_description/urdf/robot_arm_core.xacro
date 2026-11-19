@@ -1,0 +1,374 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Kinematic Dimensions (meters) -->
+  <xacro:property name="base_height" value="0.060"/>
+  <xacro:property name="shoulder_height" value="0.080"/>
+  <xacro:property name="upper_arm_length" value="0.240"/>
+  <xacro:property name="forearm_length" value="0.220"/>
+  <xacro:property name="wrist_to_ee_length" value="0.140"/>
+
+  <!-- Ergonomic zero-angle offsets so q=[0,0,0,0] forms a non-singular Home pose -->
+  <xacro:property name="shoulder_zero_pitch" value="-0.350"/>
+  <xacro:property name="elbow_zero_pitch" value="1.750"/>
+  <xacro:property name="wrist_zero_pitch" value="0.17079632679"/>
+
+  <!-- Materials -->
+  <material name="base_dark">
+    <color rgba="0.14 0.16 0.20 1.0"/>
+  </material>
+  <material name="slate_grey">
+    <color rgba="0.26 0.30 0.36 1.0"/>
+  </material>
+  <material name="arm_blue">
+    <color rgba="0.18 0.44 0.72 1.0"/>
+  </material>
+  <material name="silver_metal">
+    <color rgba="0.72 0.75 0.78 1.0"/>
+  </material>
+  <material name="accent_orange">
+    <color rgba="0.90 0.42 0.12 1.0"/>
+  </material>
+  <material name="rubber_black">
+    <color rgba="0.08 0.08 0.09 1.0"/>
+  </material>
+  <material name="tcp_green">
+    <color rgba="0.15 0.85 0.35 0.9"/>
+  </material>
+
+  <!-- Inertial Macros -->
+  <xacro:macro name="cylinder_inertial" params="mass radius length xyz:='0 0 0' rpy:='0 0 0'">
+    <inertial>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${mass * (3.0 * radius * radius + length * length) / 12.0}"
+        ixy="0.0" ixz="0.0"
+        iyy="${mass * (3.0 * radius * radius + length * length) / 12.0}"
+        iyz="0.0"
+        izz="${0.5 * mass * radius * radius}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="box_inertial" params="mass x y z xyz:='0 0 0' rpy:='0 0 0'">
+    <inertial>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${mass * (y * y + z * z) / 12.0}"
+        ixy="0.0" ixz="0.0"
+        iyy="${mass * (x * x + z * z) / 12.0}"
+        iyz="0.0"
+        izz="${mass * (x * x + y * y) / 12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- World Anchor Frame -->
+  <link name="world"/>
+
+  <joint name="world_fixed" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Base Link -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.010" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.095" length="0.020"/>
+      </geometry>
+      <material name="base_dark"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.038" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.072" length="0.036"/>
+      </geometry>
+      <material name="slate_grey"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.056" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.076" length="0.008"/>
+      </geometry>
+      <material name="accent_orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.030" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.095" length="0.060"/>
+      </geometry>
+    </collision>
+    <xacro:cylinder_inertial mass="2.5" radius="0.090" length="0.060" xyz="0 0 0.030"/>
+  </link>
+
+  <!-- DOF 1 - Base Rotation Joint (Yaw around Z) -->
+  <joint name="base_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="shoulder_link"/>
+    <origin xyz="0 0 ${base_height}" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-2.9670" upper="2.9670" effort="60.0" velocity="2.2"/>
+    <dynamics damping="0.6" friction="0.1"/>
+  </joint>
+
+  <!-- Shoulder Turret Link -->
+  <link name="shoulder_link">
+    <visual>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.065" length="0.050"/>
+      </geometry>
+      <material name="base_dark"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.036 0.064" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.066 0.014 0.068"/>
+      </geometry>
+      <material name="slate_grey"/>
+    </visual>
+    <visual>
+      <origin xyz="0 -0.036 0.064" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.066 0.014 0.068"/>
+      </geometry>
+      <material name="slate_grey"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 ${shoulder_height}" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.034" length="0.096"/>
+      </geometry>
+      <material name="accent_orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.042" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.062" length="0.080"/>
+      </geometry>
+    </collision>
+    <xacro:cylinder_inertial mass="1.2" radius="0.060" length="0.080" xyz="0 0 0.040"/>
+  </link>
+
+  <!-- DOF 2 - Shoulder Joint (Pitch around Y) -->
+  <joint name="shoulder_joint" type="revolute">
+    <parent link="shoulder_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0 0 ${shoulder_height}" rpy="0 ${shoulder_zero_pitch} 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.22" upper="1.92" effort="60.0" velocity="2.2"/>
+    <dynamics damping="0.6" friction="0.1"/>
+  </joint>
+
+  <!-- Upper Arm Link -->
+  <link name="upper_arm_link">
+    <visual>
+      <origin xyz="0 0.021 ${upper_arm_length / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.046 0.014 0.240"/>
+      </geometry>
+      <material name="arm_blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0 -0.021 ${upper_arm_length / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.046 0.014 0.240"/>
+      </geometry>
+      <material name="arm_blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 ${upper_arm_length / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.036 0.028 0.160"/>
+      </geometry>
+      <material name="silver_metal"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 ${upper_arm_length}" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.030" length="0.076"/>
+      </geometry>
+      <material name="accent_orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${upper_arm_length / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.046 0.056 0.180"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertial mass="1.0" x="0.048" y="0.056" z="0.240" xyz="0 0 ${upper_arm_length / 2.0}"/>
+  </link>
+
+  <!-- DOF 3 - Elbow Joint (Pitch around Y) -->
+  <joint name="elbow_joint" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0 0 ${upper_arm_length}" rpy="0 ${elbow_zero_pitch} 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.55" upper="0.90" effort="45.0" velocity="2.5"/>
+    <dynamics damping="0.4" friction="0.1"/>
+  </joint>
+
+  <!-- Forearm Link -->
+  <link name="forearm_link">
+    <visual>
+      <origin xyz="0 0 ${forearm_length / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.024" length="0.200"/>
+      </geometry>
+      <material name="silver_metal"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.024" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.044 0.048 0.044"/>
+      </geometry>
+      <material name="arm_blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.195" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040 0.046 0.038"/>
+      </geometry>
+      <material name="slate_grey"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 ${forearm_length}" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="0.064"/>
+      </geometry>
+      <material name="accent_orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${forearm_length / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="0.165"/>
+      </geometry>
+    </collision>
+    <xacro:cylinder_inertial mass="0.7" radius="0.025" length="0.220" xyz="0 0 ${forearm_length / 2.0}"/>
+  </link>
+
+  <!-- DOF 4 - Wrist Joint (Pitch around Y) -->
+  <joint name="wrist_joint" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="wrist_link"/>
+    <origin xyz="0 0 ${forearm_length}" rpy="0 ${wrist_zero_pitch} 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.40" upper="2.40" effort="30.0" velocity="3.0"/>
+    <dynamics damping="0.2" friction="0.05"/>
+  </joint>
+
+  <!-- Wrist Link & Gripper Palm -->
+  <link name="wrist_link">
+    <visual>
+      <origin xyz="0 0 0.024" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.042 0.046 0.046"/>
+      </geometry>
+      <material name="slate_grey"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.058" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.028 0.098 0.020"/>
+      </geometry>
+      <material name="base_dark"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.036" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.042 0.094 0.056"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertial mass="0.35" x="0.042" y="0.090" z="0.060" xyz="0 0 0.035"/>
+  </link>
+
+  <!-- Left Gripper Finger Joint (Prismatic) -->
+  <joint name="gripper_left_joint" type="prismatic">
+    <parent link="wrist_link"/>
+    <child link="gripper_left_link"/>
+    <origin xyz="0 0.006 0.068" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="0.0" upper="0.034" effort="25.0" velocity="0.25"/>
+    <dynamics damping="0.5" friction="0.1"/>
+  </joint>
+
+  <link name="gripper_left_link">
+    <visual>
+      <origin xyz="0 0.006 0.022" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.022 0.012 0.044"/>
+      </geometry>
+      <material name="silver_metal"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.005 0.062" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.020 0.010 0.040"/>
+      </geometry>
+      <material name="rubber_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0.006 0.042" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.022 0.012 0.080"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertial mass="0.06" x="0.022" y="0.012" z="0.080" xyz="0 0.006 0.042"/>
+  </link>
+
+  <!-- Right Gripper Finger Joint (Prismatic) -->
+  <joint name="gripper_right_joint" type="prismatic">
+    <parent link="wrist_link"/>
+    <child link="gripper_right_link"/>
+    <origin xyz="0 -0.006 0.068" rpy="0 0 0"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="0.0" upper="0.034" effort="25.0" velocity="0.25"/>
+    <dynamics damping="0.5" friction="0.1"/>
+  </joint>
+
+  <link name="gripper_right_link">
+    <visual>
+      <origin xyz="0 -0.006 0.022" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.022 0.012 0.044"/>
+      </geometry>
+      <material name="silver_metal"/>
+    </visual>
+    <visual>
+      <origin xyz="0 -0.005 0.062" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.020 0.010 0.040"/>
+      </geometry>
+      <material name="rubber_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 -0.006 0.042" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.022 0.012 0.080"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertial mass="0.06" x="0.022" y="0.012" z="0.080" xyz="0 -0.006 0.042"/>
+  </link>
+
+  <!-- End-Effector / Tool Center Point (TCP) Frame -->
+  <joint name="end_effector_joint" type="fixed">
+    <parent link="wrist_link"/>
+    <child link="end_effector_link"/>
+    <origin xyz="0 0 ${wrist_to_ee_length}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="end_effector_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="tcp_green"/>
+    </visual>
+  </link>
+
+</robot>
