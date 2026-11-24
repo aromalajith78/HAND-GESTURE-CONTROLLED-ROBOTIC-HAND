@@ -57,21 +57,67 @@ Traditional robotic arm teleoperation relies on joysticks, teach pendants, or sp
 
 ## System Architecture
 
-```text
-+-------------------+      +-------------------------------+      +-----------------------------+
-|   Webcam Input    | ---> |  OpenCV + MediaPipe Hands     | ---> |  Gesture Mapping ROS 2 Node |
-|  (Live RGB Feed)  |      |  (21 3D Hand Landmarks)       |      |  (Landmark -> Joint Angles) |
-+-------------------+      +-------------------------------+      +--------------+--------------+
-                                                                                 |
-                                                                  ROS 2 Control / Joint Topics
-                                                                                 |
-                                                     +---------------------------+---------------------------+
-                                                     |                                                       |
-                                                     v                                                       v
-                                      +------------------------------+                        +-----------------------------+
-                                      |       Gazebo Classic 11      |  --- /joint_states --> |            RViz2            |
-                                      | (Physics, Collisions, Grasp) |  --- /tf, /tf_static ->| (URDF & TF Visualisation)   |
-                                      +------------------------------+                        +-----------------------------+
+## System Architecture
+
+```mermaid
+flowchart TB
+    subgraph PERCEPTION["1. Perception Layer — Computer Vision"]
+        direction LR
+        CAM["RGB Webcam<br/>(OpenCV VideoCapture)"]
+        MP["MediaPipe Hands<br/>(21 3D Hand Landmarks)"]
+        CAM -->|"Live RGB Frames"| MP
+    end
+
+    subgraph TELEOP["2. Teleoperation & Mapping Layer — ROS 2 Python Node"]
+        direction LR
+        NORM["Coordinate Normalisation<br/>& Smoothing"]
+        MAP["Gesture-to-Joint Mapper<br/>(3-DOF Arm + Pinch Gripper)"]
+        SAFE["Joint Limit Clamping<br/>& Safety Bounds"]
+        NORM --> MAP --> SAFE
+    end
+
+    subgraph CONTROL["3. ROS 2 Middleware & Control Stack"]
+        direction LR
+        URDF["Robot Description<br/>(URDF / Xacro)"]
+        CTRL["ros2_control Manager<br/>(Arm & Gripper Controllers)"]
+        JSB["joint_state_broadcaster"]
+        RSP["robot_state_publisher"]
+        URDF -->|"/robot_description"| RSP
+        JSB -->|"/joint_states"| RSP
+    end
+
+    subgraph SIM["4. Physics Simulation & Visualisation Layer"]
+        direction LR
+        GZ["Gazebo Classic 11<br/>(gazebo_ros2_control & Physics)"]
+        RVIZ["RViz2<br/>(Live 3D Model & TF Tree)"]
+    end
+
+    MP -->|"3D Landmark Coordinates"| NORM
+    SAFE -->|"Joint Command Topics"| CTRL
+    CTRL -->|"Actuator Commands"| GZ
+    URDF -.->|"Spawn Robot Model"| GZ
+    GZ -->|"Simulated Joint Feedback"| JSB
+    RSP -->|"/tf, /tf_static & /robot_description"| RVIZ
+
+    classDef perception fill:#0d47a1,stroke:#64b5f6,stroke-width:2px,color:#ffffff;
+    classDef teleop fill:#00695c,stroke:#4db6ac,stroke-width:2px,color:#ffffff;
+    classDef control fill:#283593,stroke:#7986cb,stroke-width:2px,color:#ffffff;
+    classDef sim fill:#e65100,stroke:#ffb74d,stroke-width:2px,color:#ffffff;
+
+    class CAM,MP perception;
+    class NORM,MAP,SAFE teleop;
+    class URDF,CTRL,JSB,RSP control;
+    class GZ,RVIZ sim;
+```
+
+### Architecture Breakdown
+
+| Layer | Core Components | Responsibility |
+| :--- | :--- | :--- |
+| **1. Perception** | OpenCV, MediaPipe Hands | Captures live RGB frames and extracts 21 3D hand landmarks in real time. |
+| **2. Teleoperation** | Custom ROS 2 Python Node | Normalises landmark coordinates, computes thumb–index pinch state, clamps outputs within safe joint limits, and publishes joint commands. |
+| **3. Control & State** | `ros2_control`, `joint_state_broadcaster`, `robot_state_publisher` | Translates commanded targets into controller actions, broadcasts `/joint_states`, and computes forward kinematics (`tf2` transforms) from URDF/Xacro. |
+| **4. Simulation & Vis** | Gazebo Classic 11, RViz2 | Executes rigid-body dynamics, gravity, and object grasping in Gazebo while rendering live robot state and TF frames in RViz2. |
 ```
 
 ### Pipeline Stages
