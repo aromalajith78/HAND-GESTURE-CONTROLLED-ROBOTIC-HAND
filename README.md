@@ -58,56 +58,74 @@ Traditional robotic arm teleoperation relies on joysticks, teach pendants, or sp
 ## System Architecture
 
 ## System Architecture
+## System Architecture
+
+> Orchestrated end-to-end via **`full_system.launch.py`**, combining Gazebo simulation, multi-robot Nav2 stacks, autonomous charging coordination, and live fleet telemetry.
 
 ```mermaid
 flowchart TB
-    subgraph PERCEPTION["1. Perception Layer — Computer Vision"]
+    subgraph SIM["1. Simulation & Robot Spawning — sim_world.launch.py & spawn_robots.launch.py"]
         direction LR
-        CAM["RGB Webcam<br/>(OpenCV VideoCapture)"]
-        MP["MediaPipe Hands<br/>(21 3D Hand Landmarks)"]
-        CAM -->|"Live RGB Frames"| MP
+        URDF["robot.urdf.xacro<br/>(3-Robot Model Definition)"]
+        WORLD["warehouse_charging.world<br/>(Gazebo Classic 11 Environment)"]
+        URDF -->|"Spawns /robot_1, /robot_2, /robot_3"| WORLD
     end
 
-    subgraph TELEOP["2. Teleoperation & Mapping Layer — ROS 2 Python Node"]
+    subgraph NAV["2. Multi-Robot Navigation Stack — multi_nav2.launch.py"]
         direction LR
-        NORM["Coordinate Normalisation<br/>& Smoothing"]
-        MAP["Gesture-to-Joint Mapper<br/>(3-DOF Arm + Pinch Gripper)"]
-        SAFE["Joint Limit Clamping<br/>& Safety Bounds"]
-        NORM --> MAP --> SAFE
+        MAP["warehouse_map.yaml / .pgm<br/>(Shared Map Server)"]
+        NAV2["Namespaced Nav2 Stacks<br/>(nav2_params_robot_1 / 2 / 3.yaml)"]
+        MAP -->|"Occupancy Grid Map"| NAV2
     end
 
-    subgraph CONTROL["3. ROS 2 Middleware & Control Stack"]
-        direction LR
-        URDF["Robot Description<br/>(URDF / Xacro)"]
-        CTRL["ros2_control Manager<br/>(Arm & Gripper Controllers)"]
-        JSB["joint_state_broadcaster"]
-        RSP["robot_state_publisher"]
-        URDF -->|"/robot_description"| RSP
-        JSB -->|"/joint_states"| RSP
+    subgraph FLEET["3. Autonomous Fleet & Charging Logic — fleet_system.launch.py"]
+        direction TB
+        CFG["stations_and_waypoints.yaml<br/>(Charging Docks & Patrol Waypoints)"]
+        BAT["battery_simulator.py<br/>(Drain & Recharge Simulation)"]
+        MGR["fleet_manager_node.py<br/>(Nearest Dock Allocation & Locking)"]
+        CTRL["robot_mission_controller.py<br/>(Patrol & Charging State Machine)"]
+        CFG --> MGR
+        CFG --> CTRL
+        BAT -->|"Battery State per Robot"| MGR
+        MGR -->|"Dock Assignment & Priority"| CTRL
     end
 
-    subgraph SIM["4. Physics Simulation & Visualisation Layer"]
+    subgraph VIS["4. Visualisation & Live Telemetry"]
         direction LR
-        GZ["Gazebo Classic 11<br/>(gazebo_ros2_control & Physics)"]
-        RVIZ["RViz2<br/>(Live 3D Model & TF Tree)"]
+        MRK["rviz_marker_publisher.py<br/>(Station & Waypoint Markers)"]
+        RVIZ["RViz2<br/>(multi_robot.rviz)"]
+        MON["fleet_monitor.py<br/>(Real-Time Fleet Monitor)"]
+        MRK -->|"MarkerArray Overlays"| RVIZ
     end
 
-    MP -->|"3D Landmark Coordinates"| NORM
-    SAFE -->|"Joint Command Topics"| CTRL
-    CTRL -->|"Actuator Commands"| GZ
-    URDF -.->|"Spawn Robot Model"| GZ
-    GZ -->|"Simulated Joint Feedback"| JSB
-    RSP -->|"/tf, /tf_static & /robot_description"| RVIZ
+    WORLD -->|"/robot_i/odom, /scan & /tf"| NAV2
+    NAV2 -->|"/robot_i/cmd_vel"| WORLD
+    WORLD -->|"Robot Pose & Dock Contact"| BAT
+    CTRL -->|"NavigateToPose Action Goals"| NAV2
+    NAV2 -->|"Goal Feedback & Status"| CTRL
+    MGR -->|"Dock Occupancy & Status"| MRK
+    MGR -->|"Fleet Allocation State"| MON
+    BAT -->|"Live Battery Telemetry"| MON
+    WORLD -->|"/tf & Sensor Streams"| RVIZ
 
-    classDef perception fill:#0d47a1,stroke:#64b5f6,stroke-width:2px,color:#ffffff;
-    classDef teleop fill:#00695c,stroke:#4db6ac,stroke-width:2px,color:#ffffff;
-    classDef control fill:#283593,stroke:#7986cb,stroke-width:2px,color:#ffffff;
     classDef sim fill:#e65100,stroke:#ffb74d,stroke-width:2px,color:#ffffff;
+    classDef nav fill:#283593,stroke:#7986cb,stroke-width:2px,color:#ffffff;
+    classDef fleet fill:#00695c,stroke:#4db6ac,stroke-width:2px,color:#ffffff;
+    classDef vis fill:#0d47a1,stroke:#64b5f6,stroke-width:2px,color:#ffffff;
 
-    class CAM,MP perception;
-    class NORM,MAP,SAFE teleop;
-    class URDF,CTRL,JSB,RSP control;
-    class GZ,RVIZ sim;
+    class URDF,WORLD sim;
+    class MAP,NAV2 nav;
+    class CFG,BAT,MGR,CTRL fleet;
+    class MRK,RVIZ,MON vis;
+```
+
+### Architecture Breakdown
+
+| Layer | Key Files & Nodes | Responsibility |
+| :--- | :--- | :--- |
+| **Orchestration** | `full_system.launch.py` | Master launch entry point that brings up simulation, robot spawning, multi-Nav2 stacks, fleet nodes, and RViz2 in sequence. |
+| **1. Simulation & Spawning** | `sim_world.launch.py`, `spawn_robots.launch.py`, `warehouse_charging.world`, `robot.urdf.xacro` | Launches the Gazebo Classic warehouse world with charging docks and spawns 3 namespaced robots (`/robot_1`, `/robot_2`, `/robot_3`) with independent TF trees and sensor plugins. |
+| **2. Multi-Robot Navigation** | `multi_nav2.launch.py`,
 ```
 
 ### Architecture Breakdown
