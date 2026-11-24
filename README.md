@@ -60,6 +60,32 @@ Traditional robotic arm teleoperation relies on joysticks, teach pendants, or sp
 ## System Architecture
 ## System Architecture
 
+```mermaid
+flowchart TD
+    A["📷 Webcam Input<br/><i>Live RGB Feed</i>"]
+    B["✋ OpenCV + MediaPipe Hands<br/><i>21 3D Hand Landmarks</i>"]
+    C["🤖 Gesture Mapping ROS 2 Node<br/><i>Landmarks → Joint Angles</i>"]
+    D["⚙️ Gazebo Classic 11<br/><i>Physics, Collisions & Grasp</i>"]
+    E["📊 RViz2<br/><i>URDF & TF Visualisation</i>"]
+
+    A --> B
+    B --> C
+    C -->|"ROS 2 Control / Joint Topics"| D
+    C -->|"ROS 2 Control / Joint Topics"| E
+    D -->|"/joint_states<br/>/tf, /tf_static"| E
+```
+
+### Pipeline Overview
+
+| Stage | Component | Responsibility | Output / ROS 2 Topics |
+| :--- | :--- | :--- | :--- |
+| **1. Capture** | **Webcam Input** | Captures real-time video frames | Live RGB Feed |
+| **2. Vision** | **OpenCV + MediaPipe Hands** | Detects hand pose and tracks key points | 21 3D Hand Landmarks |
+| **3. Control** | **Gesture Mapping ROS 2 Node** | Translates hand landmarks into target robot joint angles | ROS 2 Control / Joint Topics |
+| **4. Simulation** | **Gazebo Classic 11** | Runs physics engine, collision detection, and grasping | `/joint_states`, `/tf`, `/tf_static` |
+| **5. Visualisation** | **RViz2** | Renders robot URDF model and real-time transform frames | Live 3D Robot State |
+## System Architecture
+
 > Orchestrated end-to-end via **`full_system.launch.py`**, combining Gazebo simulation, multi-robot Nav2 stacks, autonomous charging coordination, and live fleet telemetry.
 
 ```mermaid
