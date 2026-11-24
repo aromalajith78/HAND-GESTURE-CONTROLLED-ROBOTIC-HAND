@@ -57,111 +57,29 @@ Traditional robotic arm teleoperation relies on joysticks, teach pendants, or sp
 
 ## System Architecture
 
-## System Architecture
-## System Architecture
-
-```mermaid
-flowchart TD
-    A["📷 Webcam Input<br/><i>Live RGB Feed</i>"]
-    B["✋ OpenCV + MediaPipe Hands<br/><i>21 3D Hand Landmarks</i>"]
-    C["🤖 Gesture Mapping ROS 2 Node<br/><i>Landmarks → Joint Angles</i>"]
-    D["⚙️ Gazebo Classic 11<br/><i>Physics, Collisions & Grasp</i>"]
-    E["📊 RViz2<br/><i>URDF & TF Visualisation</i>"]
-
-    A --> B
-    B --> C
-    C -->|"ROS 2 Control / Joint Topics"| D
-    C -->|"ROS 2 Control / Joint Topics"| E
-    D -->|"/joint_states<br/>/tf, /tf_static"| E
-```
-
-### Pipeline Overview
-
-| Stage | Component | Responsibility | Output / ROS 2 Topics |
-| :--- | :--- | :--- | :--- |
-| **1. Capture** | **Webcam Input** | Captures real-time video frames | Live RGB Feed |
-| **2. Vision** | **OpenCV + MediaPipe Hands** | Detects hand pose and tracks key points | 21 3D Hand Landmarks |
-| **3. Control** | **Gesture Mapping ROS 2 Node** | Translates hand landmarks into target robot joint angles | ROS 2 Control / Joint Topics |
-| **4. Simulation** | **Gazebo Classic 11** | Runs physics engine, collision detection, and grasping | `/joint_states`, `/tf`, `/tf_static` |
-| **5. Visualisation** | **RViz2** | Renders robot URDF model and real-time transform frames | Live 3D Robot State |
+```text
 ## System Architecture
 
-> Orchestrated end-to-end via **`full_system.launch.py`**, combining Gazebo simulation, multi-robot Nav2 stacks, autonomous charging coordination, and live fleet telemetry.
-
-```mermaid
-flowchart TB
-    subgraph SIM["1. Simulation & Robot Spawning — sim_world.launch.py & spawn_robots.launch.py"]
-        direction LR
-        URDF["robot.urdf.xacro<br/>(3-Robot Model Definition)"]
-        WORLD["warehouse_charging.world<br/>(Gazebo Classic 11 Environment)"]
-        URDF -->|"Spawns /robot_1, /robot_2, /robot_3"| WORLD
-    end
-
-    subgraph NAV["2. Multi-Robot Navigation Stack — multi_nav2.launch.py"]
-        direction LR
-        MAP["warehouse_map.yaml / .pgm<br/>(Shared Map Server)"]
-        NAV2["Namespaced Nav2 Stacks<br/>(nav2_params_robot_1 / 2 / 3.yaml)"]
-        MAP -->|"Occupancy Grid Map"| NAV2
-    end
-
-    subgraph FLEET["3. Autonomous Fleet & Charging Logic — fleet_system.launch.py"]
-        direction TB
-        CFG["stations_and_waypoints.yaml<br/>(Charging Docks & Patrol Waypoints)"]
-        BAT["battery_simulator.py<br/>(Drain & Recharge Simulation)"]
-        MGR["fleet_manager_node.py<br/>(Nearest Dock Allocation & Locking)"]
-        CTRL["robot_mission_controller.py<br/>(Patrol & Charging State Machine)"]
-        CFG --> MGR
-        CFG --> CTRL
-        BAT -->|"Battery State per Robot"| MGR
-        MGR -->|"Dock Assignment & Priority"| CTRL
-    end
-
-    subgraph VIS["4. Visualisation & Live Telemetry"]
-        direction LR
-        MRK["rviz_marker_publisher.py<br/>(Station & Waypoint Markers)"]
-        RVIZ["RViz2<br/>(multi_robot.rviz)"]
-        MON["fleet_monitor.py<br/>(Real-Time Fleet Monitor)"]
-        MRK -->|"MarkerArray Overlays"| RVIZ
-    end
-
-    WORLD -->|"/robot_i/odom, /scan & /tf"| NAV2
-    NAV2 -->|"/robot_i/cmd_vel"| WORLD
-    WORLD -->|"Robot Pose & Dock Contact"| BAT
-    CTRL -->|"NavigateToPose Action Goals"| NAV2
-    NAV2 -->|"Goal Feedback & Status"| CTRL
-    MGR -->|"Dock Occupancy & Status"| MRK
-    MGR -->|"Fleet Allocation State"| MON
-    BAT -->|"Live Battery Telemetry"| MON
-    WORLD -->|"/tf & Sensor Streams"| RVIZ
-
-    classDef sim fill:#e65100,stroke:#ffb74d,stroke-width:2px,color:#ffffff;
-    classDef nav fill:#283593,stroke:#7986cb,stroke-width:2px,color:#ffffff;
-    classDef fleet fill:#00695c,stroke:#4db6ac,stroke-width:2px,color:#ffffff;
-    classDef vis fill:#0d47a1,stroke:#64b5f6,stroke-width:2px,color:#ffffff;
-
-    class URDF,WORLD sim;
-    class MAP,NAV2 nav;
-    class CFG,BAT,MGR,CTRL fleet;
-    class MRK,RVIZ,MON vis;
+```text
+  [ Webcam RGB Feed ]
+           │
+           ▼
+  [ OpenCV + MediaPipe Hands ]  ──►  Extracts 21 3D Hand Landmarks
+           │
+           ▼
+  [ ROS 2 Gesture Teleop Node ] ──►  Maps X/Y/Depth & Pinch to Joint Targets
+           │
+           │  (Command Topics / ros2_control)
+           ▼
+  [ Gazebo Classic 11 ]         ──►  3-DOF Arm Physics, Gravity & Grasping
+           │
+           │  (/joint_states)
+           ▼
+  [ robot_state_publisher ]     ──►  Computes Forward Kinematics (/tf, /tf_static)
+           │
+           ▼
+  [ RViz2 ]                     ──►  Real-Time Robot & Frame Visualisation
 ```
-
-### Architecture Breakdown
-
-| Layer | Key Files & Nodes | Responsibility |
-| :--- | :--- | :--- |
-| **Orchestration** | `full_system.launch.py` | Master launch entry point that brings up simulation, robot spawning, multi-Nav2 stacks, fleet nodes, and RViz2 in sequence. |
-| **1. Simulation & Spawning** | `sim_world.launch.py`, `spawn_robots.launch.py`, `warehouse_charging.world`, `robot.urdf.xacro` | Launches the Gazebo Classic warehouse world with charging docks and spawns 3 namespaced robots (`/robot_1`, `/robot_2`, `/robot_3`) with independent TF trees and sensor plugins. |
-| **2. Multi-Robot Navigation** | `multi_nav2.launch.py`,
-```
-
-### Architecture Breakdown
-
-| Layer | Core Components | Responsibility |
-| :--- | :--- | :--- |
-| **1. Perception** | OpenCV, MediaPipe Hands | Captures live RGB frames and extracts 21 3D hand landmarks in real time. |
-| **2. Teleoperation** | Custom ROS 2 Python Node | Normalises landmark coordinates, computes thumb–index pinch state, clamps outputs within safe joint limits, and publishes joint commands. |
-| **3. Control & State** | `ros2_control`, `joint_state_broadcaster`, `robot_state_publisher` | Translates commanded targets into controller actions, broadcasts `/joint_states`, and computes forward kinematics (`tf2` transforms) from URDF/Xacro. |
-| **4. Simulation & Vis** | Gazebo Classic 11, RViz2 | Executes rigid-body dynamics, gravity, and object grasping in Gazebo while rendering live robot state and TF frames in RViz2. |
 ```
 
 ### Pipeline Stages
